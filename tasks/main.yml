@@ -1,5 +1,3 @@
 ---
-- include: "{{ansible_os_family}}.yml"
-
 # process chruby install
 - include: chruby.yml
