@@ -1,4 +1,4 @@
 ---
 chruby_version: "0.3.9"
-ruby-install_version: "0.6.1"
 binary_path: "{{ role_path }}/files"
+url_prefix: "https://github.com/postmodern/chruby/archive/"

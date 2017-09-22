@@ -12,31 +12,23 @@
   register: chruby_file_local
   become: no
 
-- name: create chruby temp dir
-  file: path=/tmp/chruby state=directory
-  when: chruby_installed.stat.exists == False
-
 - name: check to see if remote file is available
   stat: path={{ chruby_tmp_path }}
   register: chruby_file_remote
   when: chruby_installed.stat.exists == False
 
-- name: copy file from local to remote if exists
-  copy: src="{{ chruby_name }}.tar.gz" dest="/tmp/chruby/{{ chruby_name }}.tar.gz"
-  when: (chruby_installed.stat.exists == False) and (chruby_file_local.stat.exists == True) and (chruby_file_remote.stat.exists == False)
+- name: create chruby temp dir
+  file: path=/tmp/chruby state=directory
+  when: (chruby_installed.stat.exists == False) and (chruby_file_remote.stat.exists == False)
 
 - name: get file remotely since no copy of chruby is found on local or remote
-  get_url:
-    url: https://github.com/postmodern/chruby/archive/v{{ chruby_version }}.tar.gz
-    dest: "{{ chruby_tmp_path }}"
-  when: (chruby_installed.stat.exists == False) and (chruby_file_local.stat.exists == False) and (chruby_file_remote.stat.exists == False) 
+  local_action: get_url url="{{ url_prefix }}v{{ chruby_version }}.tar.gz" dest="{{ binary_path }}/{{ chruby_name }}.tar.gz"
+  become: no
+  when: (chruby_file_local.stat.exists == False) 
 
-- name: copy archive from remote to local if local missing the file
-  fetch:
-    src: "{{ chruby_tmp_path }}"
-    dest: "{{ binary_path }}/"
-    flat: yes
-  when: chruby_file_local.stat.exists == False
+- name: copy file from local to remote if exists
+  copy: src="{{ chruby_name }}.tar.gz" dest="/tmp/chruby/{{ chruby_name }}.tar.gz"
+  when: (chruby_installed.stat.exists == False) and (chruby_file_remote.stat.exists == False)
 
 - name: extract chruby package
   unarchive:
