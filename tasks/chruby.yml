@@ -1,0 +1,74 @@
+- name: set fact for chruby
+  set_fact:
+    chruby_name: chruby-{{ chruby_version }}
+    chruby_tmp_path: /tmp/chruby/chruby-{{ chruby_version }}.tar.gz
+
+- name: check if chruby is already installed
+  stat: path=/usr/local/share/doc/chruby-{{ chruby_version }}
+  register: chruby_installed
+
+- name: check to see if local file is available
+  local_action: stat path={{ binary_path }}/{{ chruby_name }}.tar.gz follow=true
+  register: chruby_file_local
+  become: no
+
+- name: create chruby temp dir
+  file: path=/tmp/chruby state=directory
+  when: chruby_installed.stat.exists == False
+
+- name: check to see if remote file is available
+  stat: path={{ chruby_tmp_path }}
+  register: chruby_file_remote
+  when: chruby_installed.stat.exists == False
+
+- name: copy file from local to remote if exists
+  copy: src="{{ chruby_name }}.tar.gz" dest="/tmp/chruby/{{ chruby_name }}.tar.gz"
+  when: (chruby_installed.stat.exists == False) and (chruby_file_local.stat.exists == True) and (chruby_file_remote.stat.exists == False)
+
+- name: get file remotely since no copy of chruby is found on local or remote
+  get_url:
+    url: https://github.com/postmodern/chruby/archive/v{{ chruby_version }}.tar.gz
+    dest: "{{ chruby_tmp_path }}"
+  when: (chruby_installed.stat.exists == False) and (chruby_file_local.stat.exists == False) and (chruby_file_remote.stat.exists == False) 
+
+- name: copy archive from remote to local if local missing the file
+  fetch:
+    src: "{{ chruby_tmp_path }}"
+    dest: "{{ binary_path }}/"
+    flat: yes
+  when: chruby_file_local.stat.exists == False
+
+- name: extract chruby package
+  unarchive:
+    src: "{{ chruby_tmp_path }}"
+    dest: /tmp/chruby
+    creates: "/tmp/chruby/{{ chruby_name }}/Makefile"
+    remote_src: yes
+  when: chruby_installed.stat.exists == false
+
+- name: install chruby
+  command: make install
+  args:
+    chdir: "/tmp/chruby/{{ chruby_name }}"
+  when: chruby_installed.stat.exists == False
+
+- name: copy chruby.sh
+  copy:
+    src: chruby.sh
+    dest: /etc/profile.d/chruby.sh
+  when: chruby_installed.stat.exists == false
+
+- name: Read chruby.sh
+  slurp:
+    src: /etc/profile.d/chruby.sh
+  register: chruby_sh_content
+
+- name: Decode slurped data
+  set_fact:
+    chruby_contents: "{{ chruby_sh_content['content'] | b64decode }}"
+
+- name: merge chruby.sh into /etc/bashrc
+  blockinfile:
+    block: "{{ chruby_contents }}"
+    dest: /etc/bashrc
+

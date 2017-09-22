@@ -1,0 +1,13 @@
+- name: install prerequisite for chruby
+  yum: pkg={{item}} state=installed
+  with_items:
+    - gcc
+    - automake 
+    - bison
+    - zlib-devel
+    - libyaml-devel
+    - openssl-devel
+    - gdbm-devel
+    - readline-devel
+    - libffi-devel
+    - git
